@@ -1,0 +1,4 @@
+before_install:
+  - cd saltedge-compliance-connector-java-v2
+install:
+  - ./gradlew install
