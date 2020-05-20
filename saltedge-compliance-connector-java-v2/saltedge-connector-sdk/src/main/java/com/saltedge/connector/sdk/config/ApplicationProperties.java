@@ -42,7 +42,7 @@ import java.security.PublicKey;
  */
 @Configuration
 @EnableConfigurationProperties(ApplicationProperties.class)
-@ConfigurationProperties("saltedge.connector")
+@ConfigurationProperties("connector")
 public class ApplicationProperties {
     /**
      * Name of Connector's public key file in PEM format
