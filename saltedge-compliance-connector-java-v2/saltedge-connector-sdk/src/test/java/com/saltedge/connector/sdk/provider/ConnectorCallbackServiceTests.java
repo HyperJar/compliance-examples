@@ -21,8 +21,9 @@
 package com.saltedge.connector.sdk.provider;
 
 import com.saltedge.connector.sdk.SDKConstants;
-import com.saltedge.connector.sdk.api.models.ProviderOfferedConsents;
+import com.saltedge.connector.sdk.api.models.ProviderConsents;
 import com.saltedge.connector.sdk.api.models.err.NotFound;
+import com.saltedge.connector.sdk.api.models.err.Unauthorized;
 import com.saltedge.connector.sdk.api.services.tokens.ConfirmTokenService;
 import com.saltedge.connector.sdk.api.services.tokens.RevokeTokenService;
 import com.saltedge.connector.sdk.callback.mapping.SessionSuccessCallbackRequest;
@@ -52,7 +53,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 @SpringBootTest
 public class ConnectorCallbackServiceTests {
 	@Autowired
-	private ConnectorCallbackService testService;
+	private ConnectorSDKCallbackService testService;
 	@MockBean
 	private ConfirmTokenService confirmTokenService;
 	@MockBean
@@ -63,24 +64,66 @@ public class ConnectorCallbackServiceTests {
 	private TokensCallbackService tokensCallbackService;
 
 	@Test(expected = ConstraintViolationException.class)
-	public void givenInvalidParams_whenOnOAuthAuthorizationSuccess_thenThrowConstraintViolationException() {
+	public void givenInvalidParams_whenIsUserConsentRequired_thenThrowConstraintViolationException() {
+		testService.isUserConsentRequired("");
+	}
+
+	@Test
+	public void givenNullToken_whenIsUserConsentRequired_thenReturnFalse() {
+		// given
+		given(confirmTokenService.findTokenBySessionSecret("sessionSecret")).willReturn(null);
+
+		// when
+		boolean result = testService.isUserConsentRequired("sessionSecret");
+
+		// then
+		assertThat(result).isFalse();
+	}
+
+	@Test
+	public void givenTokenWithGlobalConsent_whenIsUserConsentRequired_thenReturnFalse() {
+		// given
+		Token token = new Token();
+		token.providerOfferedConsents = new ProviderConsents(ProviderConsents.GLOBAL_CONSENT_VALUE);
+		given(confirmTokenService.findTokenBySessionSecret("sessionSecret")).willReturn(token);
+
+		// when
+		boolean result = testService.isUserConsentRequired("sessionSecret");
+
+		// then
+		assertThat(result).isFalse();
+	}
+
+	@Test
+	public void givenTokenWithNoConsent_whenIsUserConsentRequired_thenReturnTrue() {
+		// given
+		Token token = new Token();
+		given(confirmTokenService.findTokenBySessionSecret("sessionSecret")).willReturn(token);
+
+		// when
+		boolean result = testService.isUserConsentRequired("sessionSecret");
+
+		// then
+		assertThat(result).isTrue();
+	}
+
+	@Test(expected = ConstraintViolationException.class)
+	public void givenInvalidParams_whenOnAccountInformationAuthorizationSuccess_thenThrowConstraintViolationException() {
 		testService.onAccountInformationAuthorizationSuccess(
 				"",
 				"",
 				"",
-				null,
 				null);
 	}
 
 	@Test
-	public void givenNullToken_whenOnOAuthAuthorizationSuccess_thenReturnNull() {
+	public void givenNullToken_whenOnAccountInformationAuthorizationSuccess_thenReturnNull() {
 		// given
-		ProviderOfferedConsents consent = new ProviderOfferedConsents();
+		ProviderConsents consent = new ProviderConsents();
 		given(confirmTokenService.confirmToken(
 				"sessionSecret",
 				"user1",
 				"accessToken",
-				Instant.parse("2019-11-18T16:04:49.585Z"),
 				consent
 		)).willReturn(null);
 
@@ -89,7 +132,6 @@ public class ConnectorCallbackServiceTests {
 				"sessionSecret",
 				"user1",
 				"accessToken",
-				Instant.parse("2019-11-18T16:04:49.585Z"),
 				consent
 		);
 
@@ -98,15 +140,14 @@ public class ConnectorCallbackServiceTests {
 	}
 
 	@Test
-	public void givenToken_whenOnOAuthAuthorizationSuccess_thenConfirmTokenAndReturnRedirectUrl() {
+	public void givenToken_whenOnAccountInformationAuthorizationSuccess_thenConfirmTokenAndReturnRedirectUrl() {
 		// given
-		Token token = new Token("sessionSecret", "tppAppName", "authTypeCode", "http://redirect.to");
-		ProviderOfferedConsents consent = new ProviderOfferedConsents();
+		Token token = new Token("sessionSecret", "tppAppName", "authTypeCode", "http://redirect.to", Instant.parse("2019-11-18T16:04:49.585Z"));
+		ProviderConsents consent = new ProviderConsents();
 		given(confirmTokenService.confirmToken(
 				"sessionSecret",
 				"user1",
 				"accessToken",
-				Instant.parse("2019-11-18T16:04:49.585Z"),
 				consent
 		)).willReturn(token);
 
@@ -115,7 +156,6 @@ public class ConnectorCallbackServiceTests {
 				"sessionSecret",
 				"user1",
 				"accessToken",
-				Instant.parse("2019-11-18T16:04:49.585Z"),
 				consent
 		);
 
@@ -124,14 +164,13 @@ public class ConnectorCallbackServiceTests {
 	}
 
 	@Test(expected = ConstraintViolationException.class)
-	public void givenInvalidParams_whenOnOAuthAuthorizationError_thenThrowConstraintViolationException() {
+	public void givenInvalidParams_whenOnAccountInformationAuthorizationFail_thenThrowConstraintViolationException() {
 		testService.onAccountInformationAuthorizationFail("");
 	}
 
 	@Test
-	public void givenNullToken_whenOnOAuthAuthorizationError_thenReturnNull() {
+	public void givenNullToken_whenOnAccountInformationAuthorizationFail_thenReturnNullAndSendFailCallback() {
 		// given
-		ProviderOfferedConsents consent = new ProviderOfferedConsents();
 		given(revokeTokenService.revokeTokenBySessionSecret("sessionSecret")).willReturn(null);
 
 		// when
@@ -139,12 +178,14 @@ public class ConnectorCallbackServiceTests {
 
 		// then
 		assertThat(result).isNull();
+		verify(sessionsCallbackService).sendFailCallback(eq("sessionSecret"), eq(new Unauthorized.AccessDenied()));
 	}
 
 	@Test
-	public void givenToken_whenOnOAuthAuthorizationError_thenRevokeTokenAndReturnRedirectUrl() {
+	public void givenToken_whenOnAccountInformationAuthorizationFail_thenRevokeTokenAndReturnRedirectUrlAndSendFailCallback() {
 		// given
-		Token token = new Token("sessionSecret", "tppAppName", "authTypeCode", "http://redirect.to");
+		Token token = new Token("userId");
+		token.tppRedirectUrl = "http://redirect.to";
 		given(revokeTokenService.revokeTokenBySessionSecret("sessionSecret")).willReturn(token);
 
 		// when
@@ -152,9 +193,8 @@ public class ConnectorCallbackServiceTests {
 
 		// then
 		assertThat(result).isEqualTo("http://redirect.to");
+		verify(sessionsCallbackService).sendFailCallback(eq("sessionSecret"), eq(new Unauthorized.AccessDenied()));
 	}
-
-	/////////////////
 
 	@Test(expected = ConstraintViolationException.class)
 	public void givenInvalidParams_whenRevokeAccountInformationConsent_thenThrowConstraintViolationException() {
@@ -164,7 +204,6 @@ public class ConnectorCallbackServiceTests {
 	@Test
 	public void givenNullToken_whenRevokeAccountInformationConsent_thenReturnFalse() {
 		// given
-		ProviderOfferedConsents consent = new ProviderOfferedConsents();
 		given(revokeTokenService.revokeTokenByUserIdAndAccessToken("userId", "accessToken")).willReturn(null);
 
 		// when
@@ -177,7 +216,7 @@ public class ConnectorCallbackServiceTests {
 	@Test
 	public void givenRevokedToken_whenRevokeAccountInformationConsent_thenSendRevokeCallbackAndReturnTrue() {
 		// given
-		Token token = new Token("sessionSecret", "tppAppName", "authTypeCode", "http://redirect.to");
+		Token token = new Token("userId");
 		token.status = Token.Status.REVOKED;
 		given(revokeTokenService.revokeTokenByUserIdAndAccessToken("userId", "accessToken")).willReturn(token);
 
@@ -192,7 +231,7 @@ public class ConnectorCallbackServiceTests {
 	@Test
 	public void givenNotRevokedToken_whenRevokeAccountInformationConsent_thenReturnFalse() {
 		// given
-		Token token = new Token("sessionSecret", "tppAppName", "authTypeCode", "http://redirect.to");
+		Token token = new Token("userId");
 		token.status = Token.Status.UNCONFIRMED;
 		given(revokeTokenService.revokeTokenByUserIdAndAccessToken("userId", "accessToken")).willReturn(token);
 
@@ -204,10 +243,8 @@ public class ConnectorCallbackServiceTests {
 		verifyNoMoreInteractions(tokensCallbackService);
 	}
 
-	///////////
-
 	@Test(expected = ConstraintViolationException.class)
-	public void givenEmptyPaymentId_whenOnOAuthPaymentAuthorizationSuccess_thenThrowConstraintViolationException() {
+	public void givenEmptyPaymentId_whenOnPaymentInitiationAuthorizationSuccess_thenThrowConstraintViolationException() {
 		// given
 		HashMap<String, String> extraData = new HashMap<>();
 
@@ -216,7 +253,7 @@ public class ConnectorCallbackServiceTests {
 	}
 
 	@Test(expected = ConstraintViolationException.class)
-	public void givenEmptyUserId_whenOnOAuthPaymentAuthorizationSuccess_thenThrowConstraintViolationException() {
+	public void givenEmptyUserId_whenOnPaymentInitiationAuthorizationSuccess_thenThrowConstraintViolationException() {
 		// given
 		HashMap<String, String> extraData = new HashMap<>();
 
@@ -225,7 +262,7 @@ public class ConnectorCallbackServiceTests {
 	}
 
 	@Test(expected = ConstraintViolationException.class)
-	public void givenEmptyExtra_whenOnOAuthPaymentAuthorizationSuccess_thenThrowConstraintViolationException() {
+	public void givenEmptyExtra_whenOnPaymentInitiationAuthorizationSuccess_thenThrowConstraintViolationException() {
 		// given
 		HashMap<String, String> extraData = new HashMap<>();
 
@@ -234,7 +271,7 @@ public class ConnectorCallbackServiceTests {
 	}
 
 	@Test
-	public void givenExtraWithoutSessionSecret_whenOnOAuthPaymentAuthorizationSuccess_thenReturnEmptyRedirect() {
+	public void givenExtraWithoutSessionSecret_whenOnPaymentInitiationAuthorizationSuccess_thenReturnEmptyRedirect() {
 		// given
 		HashMap<String, String> extraData = new HashMap<>();
 		extraData.put(KEY_DESCRIPTION, "test");
@@ -247,7 +284,7 @@ public class ConnectorCallbackServiceTests {
 	}
 
 	@Test
-	public void givenExtra_whenOnOAuthPaymentAuthorizationSuccess_thenReturnRedirect() {
+	public void givenExtra_whenOnPaymentInitiationAuthorizationSuccess_thenReturnRedirect() {
 		// given
 		HashMap<String, String> extraData = new HashMap<>();
 		extraData.put(SDKConstants.KEY_SESSION_SECRET, "sessionSecret");
@@ -262,7 +299,7 @@ public class ConnectorCallbackServiceTests {
 	}
 
 	@Test(expected = ConstraintViolationException.class)
-	public void givenEmptyPaymentId_whenOAuthPaymentAuthorizationFail_thenThrowConstraintViolationException() {
+	public void givenEmptyPaymentId_whenOnPaymentInitiationAuthorizationFail_thenThrowConstraintViolationException() {
 		// given
 		HashMap<String, String> extraData = new HashMap<>();
 
@@ -271,7 +308,7 @@ public class ConnectorCallbackServiceTests {
 	}
 
 	@Test(expected = ConstraintViolationException.class)
-	public void givenEmptyExtra_whenOAuthPaymentAuthorizationFail_thenThrowConstraintViolationException() {
+	public void givenEmptyExtra_whenOnPaymentInitiationAuthorizationFail_thenThrowConstraintViolationException() {
 		// given
 		HashMap<String, String> extraData = new HashMap<>();
 
@@ -280,7 +317,7 @@ public class ConnectorCallbackServiceTests {
 	}
 
 	@Test
-	public void givenExtra_whenOAuthPaymentAuthorizationFail_thenReturnRedirect() {
+	public void givenExtra_whenOnPaymentInitiationAuthorizationFail_thenReturnRedirect() {
 		// given
 		HashMap<String, String> extraData = new HashMap<>();
 		extraData.put(SDKConstants.KEY_SESSION_SECRET, "sessionSecret");
