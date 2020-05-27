@@ -74,7 +74,7 @@ public abstract class CallbackRestClient {
         if (requestData != null) {
             headersMap.add(
                     SDKConstants.HEADER_AUTHORIZATION,
-                    JsonTools.createAuthorizationHeaderValue(requestData, applicationProperties.getPrivateKey())
+                    JsonTools.createAuthorizationHeaderValue(requestData, applicationProperties.getConnectorPrivateKey())
             );
         }
         return headersMap;
