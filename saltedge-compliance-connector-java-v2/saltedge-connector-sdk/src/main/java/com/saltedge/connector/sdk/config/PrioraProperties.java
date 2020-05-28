@@ -53,21 +53,21 @@ public class PrioraProperties {
      * (https://priora.saltedge.com/providers/settings#details)
      */
     @NotBlank
-    private String appCode;
+    private String appCode = "not-in-code";
 
     /**
      * Unique Connector's App ID
      * (https://priora.saltedge.com/providers/settings#details)
      */
     @NotBlank
-    private String appId;
+    private String appId = "not-in-code";
 
     /**
      * Unique Connector's App Secret
      * (https://priora.saltedge.com/providers/settings#details)
      */
     @NotBlank
-    private String appSecret;
+    private String appSecret = "not-in-code";
 
     /**
      * Salt Edge Compliance base url.
@@ -85,7 +85,7 @@ public class PrioraProperties {
     /**
      * Salt Edge Compliance public key
      */
-    private String publicKey;
+    private String publicKey = "not-in-code";
 
     public URL getPrioraBaseUrl() {
         try {
@@ -98,7 +98,7 @@ public class PrioraProperties {
 
     public PublicKey getPrioraPublicKey() {
         if (prioraPublicKey == null) {
-            if (StringUtils.isEmpty(publicKey)) {
+            if (!StringUtils.isEmpty(publicKeyName)) {
                 prioraPublicKey = KeyTools.convertPemStringToPublicKey(ResourceTools.readKeyFile(publicKeyName));
             } else {
                 prioraPublicKey = KeyTools.convertPemStringToPublicKey(publicKey);
