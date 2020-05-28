@@ -57,7 +57,7 @@ public class ApplicationProperties {
     /**
      * Connector's private key
      */
-    private String privateKey = "not-in-code";
+    private String privateKey = "";
 
     /**
      * Salt Edge Compliance related params
@@ -86,7 +86,7 @@ public class ApplicationProperties {
 
     public PrivateKey getConnectorPrivateKey() {
         if (connectorPrivateKey == null) {
-            if (!StringUtils.isEmpty(privateKeyName)) {
+            if (StringUtils.isEmpty(privateKey)) {
                 connectorPrivateKey = KeyTools.convertPemStringToPrivateKey(ResourceTools.readKeyFile(privateKeyName));
             } else {
                 connectorPrivateKey = KeyTools.convertPemStringToPrivateKey(privateKey);

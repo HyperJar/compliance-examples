@@ -85,7 +85,7 @@ public class PrioraProperties {
     /**
      * Salt Edge Compliance public key
      */
-    private String publicKey = "not-in-code";
+    private String publicKey = "";
 
     public URL getPrioraBaseUrl() {
         try {
@@ -98,7 +98,7 @@ public class PrioraProperties {
 
     public PublicKey getPrioraPublicKey() {
         if (prioraPublicKey == null) {
-            if (!StringUtils.isEmpty(publicKeyName)) {
+            if (StringUtils.isEmpty(publicKey)) {
                 prioraPublicKey = KeyTools.convertPemStringToPublicKey(ResourceTools.readKeyFile(publicKeyName));
             } else {
                 prioraPublicKey = KeyTools.convertPemStringToPublicKey(publicKey);
