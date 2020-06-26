@@ -25,6 +25,7 @@ import com.saltedge.connector.sdk.tools.ResourceTools;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.util.StringUtils;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
@@ -37,24 +38,26 @@ import java.security.PublicKey;
  * Example of application.yml
  * connector:
  *   private_key_name: connector_private_prod.pem
- *   public_key_name: connector_public_prod.pem
- *   connection_expires_in_minutes: 5
+ *   priora:
+ *     app_code: spring_connector_example
+ *     app_id: xxxxxxxxx
+ *     app_secret: xxxxxxxxx
+ *     base_url: https://priora.saltedge.com/
+ *     public_key_name: priora_public_prod.pem
  */
 @Configuration
 @EnableConfigurationProperties(ApplicationProperties.class)
 @ConfigurationProperties("connector")
 public class ApplicationProperties {
     /**
-     * Name of Connector's public key file in PEM format
-     */
-    @NotBlank
-    private String publicKeyName;
-
-    /**
      * Name of Connector's private key file in PEM format
      */
-    @NotBlank
     private String privateKeyName;
+
+    /**
+     * Connector's private key
+     */
+    private String privateKey = "";
 
     /**
      * Salt Edge Compliance related params
@@ -63,15 +66,7 @@ public class ApplicationProperties {
     @NotNull
     private PrioraProperties priora;
 
-    /**
-     * Expiration period of Access Token for Salt Edge Compliance Solution.
-     */
-    @NotNull
-    public static Integer connectionExpiresInMinutes = 24 * 60;
-
-    private PublicKey publicKey;
-    private PrivateKey privateKey;
-
+    private PrivateKey connectorPrivateKey;
 
     public String getPrioraAppCode() {
         return priora.getAppCode();
@@ -89,30 +84,23 @@ public class ApplicationProperties {
         return priora;
     }
 
-    public PublicKey getPublicKey() {
-        if (publicKey == null) {
-            publicKey = KeyTools.convertPemStringToPublicKey(ResourceTools.readKeyFile(publicKeyName));
+    public PrivateKey getConnectorPrivateKey() {
+        if (connectorPrivateKey == null) {
+            if (StringUtils.isEmpty(privateKey)) {
+                connectorPrivateKey = KeyTools.convertPemStringToPrivateKey(ResourceTools.readKeyFile(privateKeyName));
+            } else {
+                connectorPrivateKey = KeyTools.convertPemStringToPrivateKey(privateKey);
+            }
         }
-        return publicKey;
-    }
-
-    public PrivateKey getPrivateKey() {
-        if (privateKey == null) {
-            privateKey = KeyTools.convertPemStringToPrivateKey(ResourceTools.readKeyFile(privateKeyName));
-        }
-        return privateKey;
-    }
-
-    public String getPublicKeyName() {
-        return publicKeyName;
-    }
-
-    public void setPublicKeyName(String publicKeyName) {
-        this.publicKeyName = publicKeyName;
+        return connectorPrivateKey;
     }
 
     public String getPrivateKeyName() {
         return privateKeyName;
+    }
+
+    public PublicKey getPrioraPublicKey() {
+        return getPriora().getPrioraPublicKey();
     }
 
     public void setPrivateKeyName(String privateKeyName) {
@@ -123,15 +111,11 @@ public class ApplicationProperties {
         this.priora = priora;
     }
 
-    public void setPublicKey(PublicKey publicKey) {
-        this.publicKey = publicKey;
+    public String getPrivateKey() {
+        return privateKey;
     }
 
-    public void setPrivateKey(PrivateKey privateKey) {
+    public void setPrivateKey(final String privateKey) {
         this.privateKey = privateKey;
-    }
-
-    public PublicKey getPrioraPublicKey() {
-        return getPriora().getPrioraPublicKey();
     }
 }

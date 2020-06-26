@@ -27,6 +27,7 @@ import com.saltedge.connector.sdk.config.PrioraProperties;
 import com.saltedge.connector.sdk.tools.JsonTools;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -48,6 +49,7 @@ public abstract class CallbackRestClient {
     @Autowired
     public ApplicationProperties applicationProperties;
     @Autowired
+    @Qualifier("saltEdgeRestTemplate")
     public RestTemplate restTemplate;
 
     protected ObjectMapper mapper = JsonTools.createDefaultMapper();
@@ -74,7 +76,7 @@ public abstract class CallbackRestClient {
         if (requestData != null) {
             headersMap.add(
                     SDKConstants.HEADER_AUTHORIZATION,
-                    JsonTools.createAuthorizationHeaderValue(requestData, applicationProperties.getPrivateKey())
+                    JsonTools.createAuthorizationHeaderValue(requestData, applicationProperties.getConnectorPrivateKey())
             );
         }
         return headersMap;
@@ -110,6 +112,7 @@ public abstract class CallbackRestClient {
     }
 
     @Bean
+    @Qualifier("saltEdgeRestTemplate")
     public RestTemplate createRestTemplate() {
         return new RestTemplate();
     }

@@ -23,6 +23,7 @@ package com.saltedge.connector.sdk.config;
 import com.saltedge.connector.sdk.tools.KeyTools;
 import com.saltedge.connector.sdk.tools.ResourceTools;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.util.StringUtils;
 
 import javax.validation.constraints.NotBlank;
 import java.net.MalformedURLException;
@@ -30,11 +31,11 @@ import java.net.URL;
 import java.security.PublicKey;
 
 /**
+ * Priora object properties from application.yml
+ *
  * Example of application.yml
  * connector:
  *   private_key_name: connector_private_prod.pem
- *   public_key_name: connector_public_prod.pem
- *   connection_expires_in_minutes: 5
  *   priora:
  *     app_code: spring_connector_example
  *     app_id: xxxxxxxxx
@@ -44,26 +45,29 @@ import java.security.PublicKey;
  */
 @Configuration
 public class PrioraProperties {
+
+    private PublicKey prioraPublicKey;
+
     /**
      * Registered Connector code
      * (https://priora.saltedge.com/providers/settings#details)
      */
     @NotBlank
-    private String appCode;
+    private String appCode = "not-in-code";
 
     /**
      * Unique Connector's App ID
      * (https://priora.saltedge.com/providers/settings#details)
      */
     @NotBlank
-    private String appId;
+    private String appId = "not-in-code";
 
     /**
      * Unique Connector's App Secret
      * (https://priora.saltedge.com/providers/settings#details)
      */
     @NotBlank
-    private String appSecret;
+    private String appSecret = "not-in-code";
 
     /**
      * Salt Edge Compliance base url.
@@ -76,10 +80,12 @@ public class PrioraProperties {
      * Name of Salt Edge Compliance public key file in PEM format.
      * By default: `priora_public_prod.pem`
      */
-    @NotBlank
     private String publicKeyName = "priora_public_prod.pem";
 
-    private PublicKey publicKey;
+    /**
+     * Salt Edge Compliance public key
+     */
+    private String publicKey = "";
 
     public URL getPrioraBaseUrl() {
         try {
@@ -91,10 +97,14 @@ public class PrioraProperties {
     }
 
     public PublicKey getPrioraPublicKey() {
-        if (publicKey == null) {
-            publicKey = KeyTools.convertPemStringToPublicKey(ResourceTools.readKeyFile(publicKeyName));
+        if (prioraPublicKey == null) {
+            if (StringUtils.isEmpty(publicKey)) {
+                prioraPublicKey = KeyTools.convertPemStringToPublicKey(ResourceTools.readKeyFile(publicKeyName));
+            } else {
+                prioraPublicKey = KeyTools.convertPemStringToPublicKey(publicKey);
+            }
         }
-        return publicKey;
+        return prioraPublicKey;
     }
 
     public String getAppCode() {
@@ -137,11 +147,11 @@ public class PrioraProperties {
         this.publicKeyName = publicKeyName;
     }
 
-    public PublicKey getPublicKey() {
+    public String getPublicKey() {
         return publicKey;
     }
 
-    public void setPublicKey(PublicKey publicKey) {
+    public void setPublicKey(final String publicKey) {
         this.publicKey = publicKey;
     }
 }

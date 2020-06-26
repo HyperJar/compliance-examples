@@ -16,10 +16,8 @@ public class ApplicationPropertiesTest {
 
 	@Test
 	public void valuesTest() {
-		assertThat(applicationProperties.getPublicKeyName()).isNotEmpty();
 		assertThat(applicationProperties.getPrivateKeyName()).isNotEmpty();
-		assertThat(applicationProperties.getPublicKey()).isNotNull();
-		assertThat(applicationProperties.getPrivateKey()).isNotNull();
+		assertThat(applicationProperties.getConnectorPrivateKey()).isNotNull();
 
 		PrioraProperties prioraProperties = applicationProperties.getPriora();
 		assertThat(prioraProperties.getAppCode()).isEqualTo("spring_connector_example_md");
